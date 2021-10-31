@@ -24,7 +24,7 @@ func runCmd()*cobra.Command  {
 			}
 		},
 	}
-	addDefaultRequireFlags(runCmd)
+	addDefaultRequiredFlags(runCmd)
 
 	return runCmd
 }

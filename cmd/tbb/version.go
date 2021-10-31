@@ -9,7 +9,7 @@ const Major = "0"
 const Minor = "1"
 const Fix = "0"
 
-const Verbal = "TX Add & Balance List"
+const Verbal = "TX AddTx & Balance List"
 
 var versionCmd =&cobra.Command{
 	Use: "version",

@@ -21,12 +21,13 @@ func (h *Hash) UnmarshalText(data []byte)error  {
 
 
 type Block struct {
-	Header BlockHeader`json:"header"`
-	Txs []TX `json:"payload"`
+	Header BlockHeader `json:"header"`
+	Txs []Tx           `json:"payload"`
 }
 
 type BlockHeader struct {
 	Parent Hash        `json:"parent"`
+	Number uint64      `json:"number"`
 	Time uint64        `json:"time"`
 }
 
@@ -35,10 +36,11 @@ type BlockFs struct {
 	Value Block       `json:"block"`
 }
 
-func NewBlock(parent Hash,time uint64, txs []TX) Block {
+func NewBlock(parent Hash,number uint64,time uint64, txs []Tx) Block {
 	return Block{
 		Header: BlockHeader{
 			Parent: parent,
+			Number: number,
 			Time:   time,
 		},
 		Txs:    txs,
@@ -53,3 +55,4 @@ func (b Block) Hash()(Hash,error)  {
 
 	return sha256.Sum256(blockjson),nil
 }
+

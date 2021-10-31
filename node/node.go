@@ -70,15 +70,15 @@ func txAdd(writer http.ResponseWriter, request *http.Request,state *database.Sta
 		return
 	}
 
-	tx:=database.NewTX(database.NewAccount(txreq.From),database.NewAccount(txreq.To),txreq.Value,txreq.Data)
+	tx:=database.NewTx(database.NewAccount(txreq.From),database.NewAccount(txreq.To),txreq.Value,txreq.Data)
 
-	err =state.Add(tx)
+	err =state.AddTx(tx)
 	if err != nil {
 		writeErrRes(writer,err)
 		return
 	}
 
-	hash ,err:= state.Persiet()
+	hash ,err:= state.Persist()
 	if err != nil {
 		writeErrRes(writer,err)
 		return

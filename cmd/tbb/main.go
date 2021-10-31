@@ -20,7 +20,7 @@ func main() {
 	tbbCmd.AddCommand(balancesCmd())
 	//tbbCmd.AddCommand(txCmd())
 	tbbCmd.AddCommand(runCmd())
-
+	tbbCmd.AddCommand(migrateCmd())
 	err:=tbbCmd.Execute()
 	if err != nil {
 		fmt.Fprint(os.Stderr,err)
@@ -28,7 +28,7 @@ func main() {
 	}
 }
 
-func addDefaultRequireFlags(cmd *cobra.Command)  {
+func addDefaultRequiredFlags(cmd *cobra.Command)  {
 	cmd.Flags().String(flagDataDir,"","absoulte path to the node data dir where the db will stored")
 	cmd.MarkFlagRequired(flagDataDir)
 }

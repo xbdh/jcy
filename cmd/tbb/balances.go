@@ -30,7 +30,7 @@ func balancesListCmd() *cobra.Command{
 			}
 		},
 	}
-	addDefaultRequireFlags(balancesListCmd)
+	addDefaultRequiredFlags(balancesListCmd)
 	return balancesListCmd
 }
 

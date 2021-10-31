@@ -16,7 +16,7 @@ package main
 //func txAddcmd() *cobra.Command{
 //	var txadd =&cobra.Command{
 //		Use: "add",
-//		Short: "Add new tx to database",
+//		Short: "AddTx new tx to database",
 //		Run: func(cmd *cobra.Command, args []string) {
 //			from,_:=cmd.Flags().GetString(flagFrom)
 //			to ,_ :=cmd.Flags().GetString(flagTo)
@@ -35,13 +35,13 @@ package main
 //			}
 //			defer state.Close()
 //
-//			err=state.Add(tx)
+//			err=state.AddTx(tx)
 //			if err != nil {
 //				fmt.Fprintln(os.Stderr,err)
 //				os.Exit(1)
 //			}
 //
-//			_,err=state.Persiet()
+//			_,err=state.Persist()
 //			if err != nil {
 //				fmt.Fprintln(os.Stderr,err)
 //				os.Exit(1)

@@ -20,28 +20,28 @@ func main() {
 	block0 := database.NewBlock(
 		database.Hash{},
 		uint64(time.Now().Unix()),
-		[]database.TX{
-			database.NewTX("andrej", "andrej", 3, ""),
-			database.NewTX("andrej", "andrej", 700, "reward"),
+		[]database.Tx{
+			database.NewTx("andrej", "andrej", 3, ""),
+			database.NewTx("andrej", "andrej", 700, "reward"),
 		},
 	)
 
 	state.AddBlock(block0)
-	block0hash, _ := state.Persiet()
+	block0hash, _ := state.Persist()
 
 	block1 := database.NewBlock(
 		block0hash,
 		uint64(time.Now().Unix()),
-		[]database.TX{
-			database.NewTX("andrej", "babayaga", 2000, ""),
-			database.NewTX("andrej", "andrej", 100, "reward"),
-			database.NewTX("babayaga", "andrej", 1, ""),
-			database.NewTX("babayaga", "caesar", 1000, ""),
-			database.NewTX("babayaga", "andrej", 50, ""),
-			database.NewTX("andrej", "andrej", 600, "reward"),
+		[]database.Tx{
+			database.NewTx("andrej", "babayaga", 2000, ""),
+			database.NewTx("andrej", "andrej", 100, "reward"),
+			database.NewTx("babayaga", "andrej", 1, ""),
+			database.NewTx("babayaga", "caesar", 1000, ""),
+			database.NewTx("babayaga", "andrej", 50, ""),
+			database.NewTx("andrej", "andrej", 600, "reward"),
 		},
 	)
 
 	state.AddBlock(block1)
-	state.Persiet()
+	state.Persist()
 }

@@ -11,31 +11,26 @@ import (
 
 type State struct {
 	Balances map[Account]uint
-	txMempool []TX
+	txMempool []Tx
 
 	dbFile *os.File
 
+	latestBlock Block
 	latestBlockHash Hash
 }
 
 func NewStateFromDisk(dataDir string) (*State ,error){
-	//
-	//cwd ,err :=os.Getwd()
-	//if err!=nil{
-	//	return nil,err
-	//}
 
 	err:=initDataDirIfNotExists(dataDir)
 	if err != nil {
-		//fmt.Println("intstat wrong",err)
+
 		return nil, err
 	}
 
-	//genesisFilePath:=filepath.Join(cwd,"database","genesis.json")
 
 	gen,err:=loadGenesis(getGenesisJsonFilePath(dataDir))
 	if err != nil {
-		//fmt.Println("lloadt wrong",err.Error())
+
 		return nil, err
 	}
 	balances:=make(map[Account]uint)
@@ -43,14 +38,6 @@ func NewStateFromDisk(dataDir string) (*State ,error){
 		balances[account]=balance
 	}
 
-	//txDbFilePath:=filepath.Join(cwd,"database","tx.db")
-	//
-	//f,err:=os.OpenFile(txDbFilePath,os.O_APPEND|os.O_RDWR,0600)
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	//blockFilePath:= filepath.Join(cwd,"database","block.db")
 	f,err:=os.OpenFile(getBlocksDbFilePath(dataDir),os.O_APPEND|os.O_RDWR,0600)
 	if err != nil {
 		return nil, err
@@ -59,7 +46,7 @@ func NewStateFromDisk(dataDir string) (*State ,error){
 
 	scanner:=bufio.NewScanner(f)
 
-	state:=&State{balances,make([]TX,0),f,Hash{}}
+	state:=&State{balances,make([]Tx,0),f,Block{},Hash{}}
 
 	for scanner.Scan(){
 		if err:=scanner.Err();err!=nil{
@@ -68,6 +55,9 @@ func NewStateFromDisk(dataDir string) (*State ,error){
 
 		blockfsjson:=scanner.Bytes()
 
+		if len(blockfsjson)==0{
+			break
+		}
 
 		var blockfs BlockFs
 
@@ -78,12 +68,8 @@ func NewStateFromDisk(dataDir string) (*State ,error){
 		if err:=state.applyBlock(blockfs.Value);err!=nil{
 			return nil,err
 		}
-		//fmt.Println(blockfsjson)
-		//fmt.Println("====")
-		//fmt.Println(blockfs)
-		////fmt.Println(state.latestBlockHash)
-		//fmt.Println("-----")
-		//fmt.Println(scanner.Text())
+
+		state.latestBlock=blockfs.Value
 		state.latestBlockHash =blockfs.Key
 
 	}
@@ -94,7 +80,12 @@ func NewStateFromDisk(dataDir string) (*State ,error){
 func (s *State) LatestBlockHash()  Hash{
 	return s.latestBlockHash
 }
-func (s *State) Add(tx TX)error  {
+func (s* State)LatestBlock() Block {
+	return s.latestBlock
+}
+
+
+func (s *State) AddTx(tx Tx)error  {
 
 	if err:=s.apply(tx);err!=nil{
 		return err
@@ -105,7 +96,7 @@ func (s *State) Add(tx TX)error  {
 
 func (s *State) AddBlock(b Block) error  {
 	   for _,tx:=range b.Txs{
-	   	if err:=s.Add(tx);err!=nil{
+	   	if err:=s.AddTx(tx);err!=nil{
 	   		return err
 		}
 	   }
@@ -120,7 +111,7 @@ func (s *State) applyBlock(b Block)error  {
 	   }
 	return nil
 }
-func (s *State) apply(tx TX)error  {
+func (s *State) apply(tx Tx)error  {
 	if tx.IsReward(){
 		s.Balances[tx.To]+=tx.Value
 		return nil
@@ -133,14 +124,17 @@ func (s *State) apply(tx TX)error  {
 	s.Balances[tx.To] += tx.Value
 	return nil
 }
-func (s *State) Persiet()(Hash,error)  {
+func (s *State) Persist()(Hash,error)  {
 
-	block:=NewBlock(s.latestBlockHash,uint64(time.Now().Unix()),s.txMempool)
+	latestBlockHash:=s.latestBlockHash
+
+	block:=NewBlock(latestBlockHash,s.latestBlock.Header.Number+1,uint64(time.Now().Unix()),s.txMempool)
 
 	blockhash,err:=block.Hash()
 	if err != nil {
 		return Hash{},err
 	}
+
 	blockfs:=BlockFs{
 		Key:   blockhash,
 		Value: block,
@@ -156,31 +150,15 @@ func (s *State) Persiet()(Hash,error)  {
 	if _,err:= s.dbFile.Write(append(blockfsjson,'\n'));err!=nil{
 		return Hash{},err
 	}
-	s.txMempool=[]TX{}
 
+	//s.latestBlockHash=latestBlockHash  //? 存疑问
+	s.latestBlock=block
 	s.latestBlockHash=blockhash
+	s.txMempool=[]Tx{}
 
-	return s.latestBlockHash,nil
+	return s.latestBlockHash,nil  // 存疑问
 
-	//mempool:=make([]TX,len(s.txMempool))
-	//
-	//copy(mempool,s.txMempool)
-	//
-	//for i:=0;i<len(mempool);i++{
-	//	txjson,err:=json.Marshal(mempool[i])
-	//
-	//	if err!=nil{
-	//		return err
-	//	}
-	//
-	//	if _,err:= s.dbFile.Write(append(txjson,'\n'));err!=nil{
-	//		return err
-	//	}
-	//
-	//	// 已经存储的交易要删除
-	//	s.txMempool=s.txMempool[1:]
-	//}
-	//return nil
+
 }
 
 func (s *State) Close()  {
