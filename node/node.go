@@ -10,6 +10,8 @@ import (
 
 const DefaultHTTPPort = 8080
 const endpointStatus = "/node/status"
+const endpointSync = "/node/sync"
+const endpointSyncQueryKeyFromBlock = "fromBlock"
 
 type Node struct {
 	dataDir string
@@ -50,7 +52,7 @@ func New(dataDir string, port uint64, bootstrap PeerNode) *Node {
 func (n* Node)Run() error {
 	ctx:=context.Background()
 
-	fmt.Printf("listening on http port %d",n.port)
+	fmt.Printf("listening on http port %d\n",n.port)
 
 	state,err:=database.NewStateFromDisk(n.dataDir)
 	if err != nil {
@@ -77,6 +79,10 @@ func (n* Node)Run() error {
 		statusHandler(writer,request,n)
 	})
 
+	http.HandleFunc(endpointSync,func(writer http.ResponseWriter, request *http.Request) {
+		syncaHandler(writer,request,n.dataDir)
+	})
+
 
 	err= http.ListenAndServe(fmt.Sprintf(":%d" ,n.port),nil)
 
@@ -100,26 +106,26 @@ func (n *Node) sync(ctx context.Context) error {
 }
 
 func (n *Node) fetchNewBlocksAndPeers()  {
-	for _,peer:=range n.knownPeers{
-		status,err:=queryPeerStatus(peer)
+	for _,knownPeer:=range n.knownPeers{
+		status,err:=queryPeerStatus(knownPeer)
 		if err != nil {
 			fmt.Println("ERROR :",err)
 			continue
 		}
 
 		localBlockNumber:=n.state.LatestBlock().Header.Number
-		if localBlockNumber<status.Number{
+		if localBlockNumber < status.Number{
 			newBlockCount := status.Number-localBlockNumber
 
-			fmt.Printf("Found %d new block from peer %s\n",newBlockCount,peer.IP)
+			fmt.Printf("Found %d new block from peer %s\n",newBlockCount,knownPeer.IP)
 		}
 
-		for _, statusPeer:=range status.KnownPeers{
-			newPeer,isKnowPeer:=n.knownPeers[statusPeer.TcpAddress()]
+		for _, mayNewPeer:=range status.KnownPeers{
+			_,isKnowPeer:=n.knownPeers[mayNewPeer.TcpAddress()]
 			if !isKnowPeer{
-				fmt.Sprintf("Found new Peer %s\n",peer.TcpAddress())
+				fmt.Sprintf("Found new Peer %s\n",mayNewPeer.TcpAddress())
 
-				n.knownPeers[statusPeer.TcpAddress()]=newPeer
+				n.knownPeers[mayNewPeer.TcpAddress()]=mayNewPeer
 			}
 		}
 
@@ -140,3 +146,5 @@ func queryPeerStatus(peer PeerNode)(StatusRes,error)  {
 	}
 	return statusRes ,nil
 }
+
+// curl -X GET http://127.0.0.1:8081/node/sync?fromBlock=ec31eeac22949972770ad83fd9501849f79813b539bdb343af528d37ff9b426a

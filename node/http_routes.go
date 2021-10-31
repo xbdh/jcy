@@ -30,7 +30,9 @@ type TxAddReq struct {
 type TxAddRes struct {
 	Hash database.Hash `json:"block_hash"`
 }
-
+type SyncRes struct {
+	Blocks []database.Block `json:"blocks"`
+}
 
 func listBalances(writer http.ResponseWriter, request *http.Request,state *database.State)  {
 	writeRes(writer,BalancesRes{
@@ -73,3 +75,24 @@ func statusHandler(writer http.ResponseWriter, request *http.Request, n *Node)  
 	writeRes(writer,res)
 }
 
+func syncaHandler(writer http.ResponseWriter, request *http.Request,dataDir string){
+	reqHash := request.URL.Query().Get(endpointSyncQueryKeyFromBlock)
+
+	hash:= database.Hash{}
+
+	err:= hash.UnmarshalText([]byte(reqHash))
+	if err != nil {
+		writeErrRes(writer,err)
+		return
+	}
+
+	blocks,err:=database.GetBlocksAfer(hash,dataDir)
+	if err != nil {
+		writeErrRes(writer,err)
+		return
+	}
+
+	writeRes(writer,SyncRes{
+		Blocks: blocks,
+	})
+}

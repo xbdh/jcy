@@ -18,7 +18,7 @@ func runCmd()*cobra.Command  {
 			fmt.Println("lanuching tbb node and its http api ....")
 
 			bootstrap:= node.NewPeerNode(
-				"1234",
+				"127.0.0.1",
 				8080,
 				true,
 				true,
