@@ -7,6 +7,7 @@ import (
 )
 
 const flagDataDir = "datadir"
+const flagPort = "port"
 
 func main() {
 	var tbbCmd =cobra.Command{
@@ -18,9 +19,9 @@ func main() {
 	}
 	tbbCmd.AddCommand(versionCmd)
 	tbbCmd.AddCommand(balancesCmd())
-	//tbbCmd.AddCommand(txCmd())
 	tbbCmd.AddCommand(runCmd())
 	tbbCmd.AddCommand(migrateCmd())
+
 	err:=tbbCmd.Execute()
 	if err != nil {
 		fmt.Fprint(os.Stderr,err)
