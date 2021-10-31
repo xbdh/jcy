@@ -18,7 +18,7 @@ type StatusRes struct {
 	Hash database.Hash`json:"block_hash"`
 	Number uint64     `json:"block_number"`
 
-	KnownPeers []PeerNode `json:"known_peers"`
+	KnownPeers map[string]PeerNode `json:"peers_known"`
 }
 type TxAddReq struct {
 	From string `json:"from"`
