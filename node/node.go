@@ -19,6 +19,10 @@ type BalancesRes struct {
 	Balances map[database.Account]uint `json:"balances"`
 }
 
+type StatusRes struct {
+	Hash database.Hash`json:"block_hash"`
+	Number uint64     `json:"block_number"`
+}
 type TxAddReq struct {
 	From string `json:"from"`
 	To string`json:"to"`
@@ -49,6 +53,11 @@ func Run(dataDir string) error {
 	http.HandleFunc("/tx/add",func(writer http.ResponseWriter, request *http.Request) {
 		txAdd(writer,request,state)
 	})
+
+	http.HandleFunc("/node/status",func(writer http.ResponseWriter, request *http.Request) {
+		statusHandler(writer,request,state)
+	})
+
 
 	err= http.ListenAndServe(fmt.Sprintf(":%d" ,httpPort),nil)
 
@@ -87,6 +96,13 @@ func txAdd(writer http.ResponseWriter, request *http.Request,state *database.Sta
 	writeRes(writer,TxAddRes{Hash: hash})
 }
 
+func statusHandler(writer http.ResponseWriter, request *http.Request,state *database.State)  {
+	res:=StatusRes{
+		Hash:   state.LatestBlockHash(),
+		Number: state.LatestBlock().Header.Number,
+	}
+	writeRes(writer,res)
+}
 func writeErrRes(w http.ResponseWriter, err error) {
 	jsonErrRes, _ := json.Marshal(ErrRes{err.Error()})
 	w.Header().Set("Content-Type", "application/json")
