@@ -1,0 +1,7 @@
+{"from":"andrej","to":"andrej","value":700,"data":"reward"}
+{"from":"andrej","to":"andrej","value":700,"data":"reward"}
+curl  POST 'http:/localhost:8080/tx/add' --header 'Content-Type: application/json' --data-raw '{
+"from": "andrej",
+"to": "babayaga",
+"value": 100
+}'

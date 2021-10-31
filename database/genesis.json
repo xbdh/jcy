@@ -1,0 +1,7 @@
+{
+  "genesis_time": "2021-10-28 22:09",
+  "chain_id" : "the-blockchain-jcy",
+  "balances": {
+    "andrej": 100000
+  }
+}
