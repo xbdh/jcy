@@ -3,6 +3,9 @@ package node
 import (
 	"github.com/xbdh/jcy/database"
 	"net/http"
+	"strconv"
+	"fmt"
+	"time"
 )
 
 type ErrRes struct {
@@ -34,14 +37,22 @@ type SyncRes struct {
 	Blocks []database.Block `json:"blocks"`
 }
 
-func listBalances(writer http.ResponseWriter, request *http.Request,state *database.State)  {
+type AddPeerRes struct {
+	Success bool `json:"success"`
+	Error string `json:"error"`
+}
+// 账户余额信息
+// 包括最后LatestBlockHash，Balances
+func listBalancesHandler(writer http.ResponseWriter, request *http.Request,state *database.State)  {
 	writeRes(writer,BalancesRes{
 		Hash:     state.LatestBlockHash(),
 		Balances: state.Balances,
 	})
 }
 
-func txAdd(writer http.ResponseWriter, request *http.Request,state *database.State)  {
+// 新增交易
+func txAddHandler(writer http.ResponseWriter, request *http.Request,state *database.State)  {
+	// req-> TxAddReq{} -> database.Tx{}
 	txreq:=TxAddReq{}
 	err:=readReq(request,&txreq)
 	if err != nil {
@@ -51,13 +62,14 @@ func txAdd(writer http.ResponseWriter, request *http.Request,state *database.Sta
 
 	tx:=database.NewTx(database.NewAccount(txreq.From),database.NewAccount(txreq.To),txreq.Value,txreq.Data)
 
-	err =state.AddTx(tx)
-	if err != nil {
-		writeErrRes(writer,err)
-		return
-	}
+	block:=database.NewBlock(
+		state.LatestBlockHash(),
+		state.NextBlockNumber(),
+		uint64(time.Now().Unix()),
 
-	hash ,err:= state.Persist()
+		[]database.Tx{tx},  //这里只有一个交易
+		 )
+	hash,err:=state.AddBlock(block)
 	if err != nil {
 		writeErrRes(writer,err)
 		return
@@ -66,6 +78,8 @@ func txAdd(writer http.ResponseWriter, request *http.Request,state *database.Sta
 	writeRes(writer,TxAddRes{Hash: hash})
 }
 
+// 节点信息
+// 包含 最后块hashLatest :BlockHash， 块的高度：Number，此节点已知的peer信息： KnownPeers
 func statusHandler(writer http.ResponseWriter, request *http.Request, n *Node)  {
 	res:=StatusRes{
 		Hash:   n.state.LatestBlockHash(),
@@ -95,4 +109,23 @@ func syncaHandler(writer http.ResponseWriter, request *http.Request,dataDir stri
 	writeRes(writer,SyncRes{
 		Blocks: blocks,
 	})
+}
+
+func addPeerHandler(w http.ResponseWriter, r *http.Request, node *Node) {
+	peerIP := r.URL.Query().Get(endpointAddPeerQueryKeyIP)
+	peerPortRaw := r.URL.Query().Get(endpointAddPeerQueryKeyPort)
+
+	peerPort, err := strconv.ParseUint(peerPortRaw, 10, 32)
+	if err != nil {
+		writeRes(w, AddPeerRes{false, err.Error()})
+		return
+	}
+
+	peer := NewPeerNode(peerIP, peerPort, false, true)
+
+	node.AddPeer(peer)
+
+	fmt.Printf("Peer '%s' was added into KnownPeers\n", peer.TcpAddress())
+
+	writeRes(w, AddPeerRes{true, ""})
 }

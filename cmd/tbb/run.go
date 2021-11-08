@@ -14,17 +14,17 @@ func runCmd()*cobra.Command  {
 		Run: func(cmd *cobra.Command, args []string) {
 			dataDir,_:=cmd.Flags().GetString(flagDataDir)
 			port,_ := cmd.Flags().GetUint64(flagPort)
-
+			ip,_:=cmd.Flags().GetString(flagIp)
 			fmt.Println("lanuching tbb node and its http api ....")
 
 			bootstrap:= node.NewPeerNode(
 				"127.0.0.1",
 				8080,
 				true,
-				true,
+				false,
 				)
 
-			n:=node.New(dataDir,port,bootstrap)
+			n:=node.New(dataDir,ip, port,bootstrap)
 			err:=n.Run()
 			if err != nil {
 				//fmt.Println("fuck")
@@ -35,7 +35,8 @@ func runCmd()*cobra.Command  {
 	}
 
 	addDefaultRequiredFlags(runCmd)
-	runCmd.Flags().Uint64(flagPort,node.DefaultHTTPPort,"exposed HTTP port for communication with peers")
+	runCmd.Flags().String(flagIp,node.DefaultIP,"exposed ip  for communication with peers")
+	runCmd.Flags().Uint64(flagPort,node.DefaultHTTPPort,"exposed http port for communication with peers")
 
 	return runCmd
 }

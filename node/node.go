@@ -5,16 +5,21 @@ import (
 	"fmt"
 	"github.com/xbdh/jcy/database"
 	"net/http"
-	"time"
 )
 
+const DefaultIP ="127.0.0.1"
 const DefaultHTTPPort = 8080
 const endpointStatus = "/node/status"
 const endpointSync = "/node/sync"
 const endpointSyncQueryKeyFromBlock = "fromBlock"
 
+const endpointAddPeer = "/node/peer"
+const endpointAddPeerQueryKeyIP = "ip"
+const endpointAddPeerQueryKeyPort = "port"
+
 type Node struct {
 	dataDir string
+	ip string
 	port  uint64
 	
 	state *database.State
@@ -26,22 +31,25 @@ type PeerNode struct {
 	IP string             `json:"ip"`
 	Port uint64           `json:"port"`
 	IsBootstrap bool      `json:"is_bootstrap"`
-	IsActive bool         `json:"is_active"`
+
+	connected bool `json:"connected"`
+
 }
 
-func NewPeerNode(IP string, port uint64, isBootstrap bool, isActive bool) PeerNode {
-	return PeerNode{IP: IP, Port: port, IsBootstrap: isBootstrap, IsActive: isActive}
+func NewPeerNode(IP string, port uint64, isBootstrap bool, connected bool) PeerNode {
+	return PeerNode{IP: IP, Port: port, IsBootstrap: isBootstrap, connected: connected}
 }
 func (pn PeerNode) TcpAddress()string  {
 	return fmt.Sprintf("%s:%d",pn.IP,pn.Port)
 }
 
 
-func New(dataDir string, port uint64, bootstrap PeerNode) *Node {
+func New(dataDir string,ip string, port uint64, bootstrap PeerNode) *Node {
 	knownPeers:=make(map[string]PeerNode)
 	knownPeers[bootstrap.TcpAddress()]=bootstrap
 	return &Node{
 		dataDir: dataDir,
+		ip: ip,
 		port:    port,
 		knownPeers: knownPeers,
 	}
@@ -52,7 +60,7 @@ func New(dataDir string, port uint64, bootstrap PeerNode) *Node {
 func (n* Node)Run() error {
 	ctx:=context.Background()
 
-	fmt.Printf("listening on http port %d\n",n.port)
+	fmt.Printf("listening on %s:%d\n",n.ip,n.port)
 
 	state,err:=database.NewStateFromDisk(n.dataDir)
 	if err != nil {
@@ -60,27 +68,35 @@ func (n* Node)Run() error {
 		return err
 	}
 
-	go n.sync(ctx)
-
 	defer state.Close()
 
 	n.state=state
-	
+
+	go n.sync(ctx)
+
+	// 获取余额
 	http.HandleFunc("/balances/list",func(writer http.ResponseWriter, request *http.Request) {
-		listBalances(writer,request,state)
+		listBalancesHandler(writer,request,state)
 	})
 
-
+	// 增添交易
 	http.HandleFunc("/tx/add",func(writer http.ResponseWriter, request *http.Request) {
-		txAdd(writer,request,state)
+		txAddHandler(writer,request,state)
 	})
 
+	// 节点状态
 	http.HandleFunc(endpointStatus,func(writer http.ResponseWriter, request *http.Request) {
 		statusHandler(writer,request,n)
 	})
 
+	// 同步节点和块信息
 	http.HandleFunc(endpointSync,func(writer http.ResponseWriter, request *http.Request) {
 		syncaHandler(writer,request,n.dataDir)
+	})
+
+	// 添加从peer节点获取的peer节点信息
+	http.HandleFunc(endpointAddPeer,func(writer http.ResponseWriter, request *http.Request) {
+		addPeerHandler(writer,request,n)
 	})
 
 
@@ -89,62 +105,20 @@ func (n* Node)Run() error {
 	return err
 }
 
-func (n *Node) sync(ctx context.Context) error {
-	ticker:= time.NewTicker(45*time.Second)
-
-	for {
-		select {
-		case <-ticker.C:
-			fmt.Println("Searching for new peers and blocks...")
-
-			n.fetchNewBlocksAndPeers()
-		case <-ctx.Done():
-			ticker.Stop()
-
-		}
-	}
+func (n *Node) AddPeer(peer PeerNode) {
+	n.knownPeers[peer.TcpAddress()] = peer
 }
 
-func (n *Node) fetchNewBlocksAndPeers()  {
-	for _,knownPeer:=range n.knownPeers{
-		status,err:=queryPeerStatus(knownPeer)
-		if err != nil {
-			fmt.Println("ERROR :",err)
-			continue
-		}
-
-		localBlockNumber:=n.state.LatestBlock().Header.Number
-		if localBlockNumber < status.Number{
-			newBlockCount := status.Number-localBlockNumber
-
-			fmt.Printf("Found %d new block from peer %s\n",newBlockCount,knownPeer.IP)
-		}
-
-		for _, mayNewPeer:=range status.KnownPeers{
-			_,isKnowPeer:=n.knownPeers[mayNewPeer.TcpAddress()]
-			if !isKnowPeer{
-				fmt.Sprintf("Found new Peer %s\n",mayNewPeer.TcpAddress())
-
-				n.knownPeers[mayNewPeer.TcpAddress()]=mayNewPeer
-			}
-		}
-
-	}
+func (n *Node) RemovePeer(peer PeerNode) {
+	delete(n.knownPeers, peer.TcpAddress())
 }
 
-func queryPeerStatus(peer PeerNode)(StatusRes,error)  {
-	url:=fmt.Sprintf("http://%s/%s",peer.TcpAddress(),endpointStatus)
-	res,err:=http.Get(url)
-	if err != nil {
-		return StatusRes{}, err
+func (n *Node) IsKnownPeer(peer PeerNode) bool {
+	if peer.IP == n.ip && peer.Port == n.port {
+		return true
 	}
 
-	statusRes:=StatusRes{}
-	err = readRes(res,&statusRes)
-	if err != nil {
-		return StatusRes{}, err
-	}
-	return statusRes ,nil
+	_, isKnownPeer := n.knownPeers[peer.TcpAddress()]
+
+	return isKnownPeer
 }
-
-// curl -X GET http://127.0.0.1:8081/node/sync?fromBlock=ec31eeac22949972770ad83fd9501849f79813b539bdb343af528d37ff9b426a
